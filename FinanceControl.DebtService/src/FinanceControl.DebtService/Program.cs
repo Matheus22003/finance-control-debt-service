@@ -1,157 +1,119 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.OpenApi;
-using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using FinanceControl.DebtService.Endpoints;
+using FinanceControl.DebtService.Errors;
+using FinanceControl.DebtService.Persistence;
+using FinanceControl.DebtService.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =======================
-// JWT Authentication
-// =======================
-var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-var jwtAudience = builder.Configuration["Jwt:Audience"];
-var jwtKey = builder.Configuration["Jwt:Key"];
-
-if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("Jwt:Key is missing in configuration.");
-if (string.IsNullOrWhiteSpace(jwtIssuer))
-    throw new InvalidOperationException("Jwt:Issuer is missing in configuration.");
-if (string.IsNullOrWhiteSpace(jwtAudience))
-    throw new InvalidOperationException("Jwt:Audience is missing in configuration.");
-
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
+        context.ProblemDetails.Instance = context.HttpContext.Request.Path;
+        context.ProblemDetails.Extensions["traceId"] =
+            Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+    };
+});
+builder.Services.AddExceptionHandler<DebtServiceExceptionHandler>();
 
-            ValidateAudience = true,
-            ValidAudience = jwtAudience,
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
+});
 
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+var debtDatabaseConnectionString = builder.Configuration.GetConnectionString("DebtDatabase");
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    if (string.IsNullOrWhiteSpace(debtDatabaseConnectionString))
+    {
+        throw new InvalidOperationException("ConnectionStrings:DebtDatabase must be configured.");
+    }
 
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(1)
-        };
-    });
+    builder.Services.AddDbContext<DebtDbContext>(options =>
+        options.UseNpgsql(debtDatabaseConnectionString));
+}
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<PersonService>();
+builder.Services.AddScoped<DebtManagementService>();
+builder.Services.AddScoped<DebtSummaryService>();
+builder.Services.AddScoped<SettlementSimplificationService>();
+builder.Services.AddScoped<SettlementTransferService>();
+builder.Services.AddScoped<SocialConnectionService>();
+builder.Services.AddScoped<GroupService>();
+builder.Services.AddScoped<UserSnapshotService>();
+builder.Services.AddScoped<AccountDeletionService>();
 
-builder.Services.AddAuthorization();
+builder.Services.AddHealthChecks();
 
-// =======================
-// OpenAPI (native .NET 10) + Bearer scheme
-// =======================
-builder.Services.AddOpenApi("v1", options =>
+builder.Services.AddOpenApi(options =>
 {
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_1;
-    options.AddDocumentTransformer<BearerSecuritySchemeTransformer>();
     options.AddDocumentTransformer((document, _, _) =>
     {
         document.Info = new OpenApiInfo
         {
-            Title = "Finance Control — Debt Service",
+            Title = "Finance Control - Debt Service",
             Version = "v1",
-            Description = "Microserviço responsável por dívidas entre pessoas."
+            Description = "Debt, person, payment and debt history API."
         };
+
         return Task.CompletedTask;
     });
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+});
+
 var app = builder.Build();
 
-app.UseHttpsRedirection();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-// =======================
-// Dev-only docs (OpenAPI + Scalar + Swagger UI viewer)
-// =======================
-if (app.Environment.IsDevelopment())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    // OpenAPI JSON
-    app.MapOpenApi("/openapi/{documentName}.json");
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<DebtDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 
-    // Scalar UI
+app.UseForwardedHeaders();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    app.UseHttpsRedirection();
+}
+
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+{
+    app.MapOpenApi();
     app.MapScalarApiReference();
-
-    // Swagger UI viewer (requires Swashbuckle.AspNetCore)
-    app.UseSwaggerUI(c =>
+    app.UseSwaggerUI(options =>
     {
-        c.SwaggerEndpoint("/openapi/v1.json", "FinanceControl.DebtService v1");
-        c.RoutePrefix = "swagger";
+        options.SwaggerEndpoint("/openapi/v1.json", "Finance Control Debt Service v1");
+        options.RoutePrefix = "swagger";
     });
 }
 
-// =======================
-// Endpoints
-// =======================
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = HealthResponseWriter.WriteAsync
+});
 
-// Health (public)
-app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "debt-service" }))
-    .AllowAnonymous()
-    .WithTags("Health")
-    .WithOpenApi();
-
-// Debts summary (protected)
-var debts = app.MapGroup("/api/v1/debts")
-    .RequireAuthorization()
-    .WithTags("Debts");
-
-debts.MapGet("/summary", () =>
-    {
-        // Mock por enquanto
-        return Results.Ok(new
-        {
-            totalOwed = 420.00m,
-            totalToReceive = 180.00m,
-            openDebtsCount = 3
-        });
-    })
-    .WithName("GetDebtsSummary")
-    .WithOpenApi();
+var apiV1 = app.MapGroup("/api/v1");
+apiV1.MapPersonEndpoints();
+apiV1.MapDebtEndpoints();
+apiV1.MapSocialEndpoints();
+apiV1.MapInternalUserEndpoints();
 
 app.Run();
 
-// =======================
-// OpenAPI transformer: add Bearer security scheme
-// =======================
-internal sealed class BearerSecuritySchemeTransformer(IAuthenticationSchemeProvider authenticationSchemeProvider)
-    : IOpenApiDocumentTransformer
-{
-    public async Task TransformAsync(OpenApiDocument document, OpenApiDocumentTransformerContext context,
-        CancellationToken cancellationToken)
-    {
-        var schemes = await authenticationSchemeProvider.GetAllSchemesAsync();
-        var hasBearer = schemes.Any(s => s.Name == JwtBearerDefaults.AuthenticationScheme || s.Name == "Bearer");
-        if (!hasBearer) return;
-
-        document.Components ??= new OpenApiComponents();
-        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
-
-        // Upsert (não sobrescreve outros schemes)
-        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
-        {
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            In = ParameterLocation.Header,
-            BearerFormat = "JWT",
-            Description = "Enter: Bearer {your JWT token}"
-        };
-
-        foreach (var operation in document.Paths.Values.SelectMany(p => p.Operations))
-        {
-            operation.Value.Security ??= [];
-            operation.Value.Security.Add(new OpenApiSecurityRequirement
-            {
-                [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-            });
-        }
-    }
-}
+public partial class Program;

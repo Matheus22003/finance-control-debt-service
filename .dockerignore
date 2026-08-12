@@ -1,0 +1,11 @@
+.git
+.gitignore
+**/.idea
+**/.vs
+**/bin
+**/obj
+**/TestResults
+**/coverage
+*.user
+*.suo
+README.md

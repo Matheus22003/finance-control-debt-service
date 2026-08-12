@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinanceControl.DebtService", "src\FinanceControl.DebtService\FinanceControl.DebtService.csproj", "{3EA44EA5-62E4-4672-A3D8-54563A0D8D0B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinanceControl.DebtService.Tests", "tests\FinanceControl.DebtService.Tests\FinanceControl.DebtService.Tests.csproj", "{A907A89D-DCB7-477D-B3C7-23453F08661C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{3EA44EA5-62E4-4672-A3D8-54563A0D8D0B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3EA44EA5-62E4-4672-A3D8-54563A0D8D0B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3EA44EA5-62E4-4672-A3D8-54563A0D8D0B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A907A89D-DCB7-477D-B3C7-23453F08661C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A907A89D-DCB7-477D-B3C7-23453F08661C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A907A89D-DCB7-477D-B3C7-23453F08661C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A907A89D-DCB7-477D-B3C7-23453F08661C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,6 +1,144 @@
-@FinanceControl.DebtService_HostAddress = http://localhost:5085
+@host = http://localhost:5085
 
-GET {{FinanceControl.DebtService_HostAddress}}/weatherforecast/
+### Health
+GET {{host}}/health
 Accept: application/json
 
-###
+### Create current user person
+POST {{host}}/api/v1/people
+Content-Type: application/json
+
+{
+  "name": "Me",
+  "email": "me@example.com",
+  "isCurrentUser": true
+}
+
+> {% client.global.set("currentPersonId", response.body.id); %}
+
+### Create another person
+POST {{host}}/api/v1/people
+Content-Type: application/json
+
+{
+  "name": "Ana",
+  "email": "ana@example.com",
+  "isCurrentUser": false
+}
+
+> {% client.global.set("anaPersonId", response.body.id); %}
+
+### List people
+GET {{host}}/api/v1/people
+Accept: application/json
+
+### Create shared debt
+POST {{host}}/api/v1/debts
+Content-Type: application/json
+
+{
+  "description": "Shared dinner",
+  "totalAmount": 200.00,
+  "paidByPersonId": "{{currentPersonId}}",
+  "category": "FOOD",
+  "dueDate": "2026-08-15",
+  "shares": [
+    {
+      "personId": "{{currentPersonId}}",
+      "amount": 100.00
+    },
+    {
+      "personId": "{{anaPersonId}}",
+      "amount": 100.00
+    }
+  ]
+}
+
+> {%
+    client.global.set("debtId", response.body.id);
+    const anaShare = response.body.shares.find(share => share.person.id === client.global.get("anaPersonId"));
+    client.global.set("anaShareId", anaShare.id);
+%}
+
+### Get debt
+GET {{host}}/api/v1/debts/{{debtId}}
+Accept: application/json
+
+### Debt summary
+GET {{host}}/api/v1/debts/summary
+Accept: application/json
+
+### Simplified settlements
+GET {{host}}/api/v1/debts/settlements/simplified
+Accept: application/json
+
+### Active simplified settlement transfers
+GET {{host}}/api/v1/debts/settlements/simplified/transfers
+Accept: application/json
+
+### Simplified transfers awaiting confirmation
+GET {{host}}/api/v1/debts/settlements/simplified/transfers/pending-confirmation
+Accept: application/json
+
+### Record a simplified settlement transfer
+POST {{host}}/api/v1/debts/settlements/simplified/transfers
+Content-Type: application/json
+
+{
+  "groupId": null,
+  "fromPersonId": "{{currentPersonId}}",
+  "toPersonId": "{{anaPersonId}}",
+  "amount": 50.00,
+  "paymentDate": "2026-08-03",
+  "note": "PIX"
+}
+
+> {% client.global.set("settlementTransferId", response.body.id); %}
+
+### Confirm a simplified settlement transfer
+POST {{host}}/api/v1/debts/settlements/simplified/transfers/{{settlementTransferId}}/confirm
+
+### Reject a simplified settlement transfer
+POST {{host}}/api/v1/debts/settlements/simplified/transfers/{{settlementTransferId}}/reject
+
+### Add payment to Ana's share
+POST {{host}}/api/v1/debts/{{debtId}}/shares/{{anaShareId}}/payments
+Content-Type: application/json
+
+{
+  "amount": 100.00,
+  "paymentDate": "2026-07-31",
+  "note": "PIX"
+}
+
+> {% client.global.set("paymentId", response.body.id); %}
+
+### List payments
+GET {{host}}/api/v1/debts/{{debtId}}/payments
+Accept: application/json
+
+### Correct payment
+PUT {{host}}/api/v1/debts/{{debtId}}/payments/{{paymentId}}
+Content-Type: application/json
+
+{
+  "amount": 50.00,
+  "paymentDate": "2026-07-31",
+  "note": "Corrected PIX"
+}
+
+### Debt history
+GET {{host}}/api/v1/debts/{{debtId}}/history
+Accept: application/json
+
+### Delete payment
+DELETE {{host}}/api/v1/debts/{{debtId}}/payments/{{paymentId}}
+
+### Delete debt
+DELETE {{host}}/api/v1/debts/{{debtId}}
+
+### OpenAPI document (Development only)
+GET {{host}}/openapi/v1.json
+
+### Swagger UI (Development only)
+GET {{host}}/swagger

@@ -36,7 +36,8 @@
           ]
         },
         "restoreLockProperties": {
-          "restorePackagesWithLockFile": "true"
+          "restorePackagesWithLockFile": "true",
+          "restoreLockedMode": true
         },
         "restoreAuditProperties": {
           "enableAudit": "true",

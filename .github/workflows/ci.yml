@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: 10.0.301
+
+jobs:
+  test-and-build:
+    name: Testes e imagem Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restaurar dependências bloqueadas
+        working-directory: FinanceControl.DebtService
+        run: dotnet restore FinanceControl.DebtService.sln --locked-mode
+
+      - name: Executar testes
+        working-directory: FinanceControl.DebtService
+        run: dotnet test FinanceControl.DebtService.sln --configuration Release --no-restore
+
+      - name: Compilar imagem Docker
+        run: docker build --tag finance-control-debt-service:ci .

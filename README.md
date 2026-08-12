@@ -132,6 +132,13 @@ Os testes usam EF Core InMemory `10.0.10`. A migration e o provider Npgsql são 
 dotnet test FinanceControl.DebtService.sln --configuration Release
 ```
 
+## Integração contínua
+
+O workflow `.github/workflows/ci.yml` é executado em pushes e pull requests para
+`main` e `develop`, além de permitir execução manual. A pipeline restaura as
+dependências pelo lock file, executa os testes em `Release` e valida a imagem
+Docker do Debt Service.
+
 ## Pacotes com versão direta
 
 Aplicação:

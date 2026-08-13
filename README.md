@@ -102,6 +102,14 @@ Host=localhost;Port=5432;Database=finance_control_debt;Username=debt_app;Passwor
 
 O Debt Service não emite nem valida JWT. O BFF permanece como único ponto de autenticação e o serviço fica em rede interna no Docker Compose.
 
+## Observabilidade
+
+Cada requisição recebe um UUID no header `X-Correlation-ID`. O serviço preserva
+um valor válido propagado pelo BFF ou gera um novo, devolve-o na resposta e o
+inclui nas respostas ProblemDetails. Os logs são emitidos em JSON com o ID de
+correlação, método, caminho, status HTTP e duração, sem registrar payloads ou
+informações financeiras sensíveis.
+
 ## Execução local
 
 O SDK é fixado em `10.0.301` pelo `global.json` e a ferramenta `dotnet-ef` em `10.0.10` pelo manifest local.

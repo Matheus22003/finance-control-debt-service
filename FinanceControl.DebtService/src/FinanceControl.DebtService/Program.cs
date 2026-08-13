@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FinanceControl.DebtService.Endpoints;
 using FinanceControl.DebtService.Errors;
+using FinanceControl.DebtService.Observability;
 using FinanceControl.DebtService.Persistence;
 using FinanceControl.DebtService.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -20,6 +21,8 @@ builder.Services.AddProblemDetails(options =>
         context.ProblemDetails.Instance = context.HttpContext.Request.Path;
         context.ProblemDetails.Extensions["traceId"] =
             Activity.Current?.Id ?? context.HttpContext.TraceIdentifier;
+        context.ProblemDetails.Extensions["correlationId"] =
+            CorrelationIdMiddleware.GetCorrelationId(context.HttpContext);
     };
 });
 builder.Services.AddExceptionHandler<DebtServiceExceptionHandler>();
@@ -84,6 +87,7 @@ if (!app.Environment.IsEnvironment("Testing"))
 }
 
 app.UseForwardedHeaders();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 

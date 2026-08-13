@@ -7,6 +7,7 @@ using FinanceControl.DebtService.Contracts.People;
 using FinanceControl.DebtService.Contracts.Social;
 using FinanceControl.DebtService.Domain;
 using FinanceControl.DebtService.Persistence;
+using FinanceControl.DebtService.Observability;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -675,13 +676,18 @@ public sealed class ApiTests(DebtServiceApplicationFactory factory) : IClassFixt
     public async Task UnknownRoute_ReturnsProblemDetails()
     {
         await factory.ResetDatabaseAsync();
-        var response = await _client.GetAsync("/api/v1/debts/unknown");
+        var correlationId = Guid.Parse("0979386f-e630-4a29-adf3-ea62be3d7ed4").ToString("D");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/debts/unknown");
+        request.Headers.Add(CorrelationIdMiddleware.HeaderName, correlationId);
+        var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(correlationId, response.Headers.GetValues(CorrelationIdMiddleware.HeaderName).Single());
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(404, payload.RootElement.GetProperty("status").GetInt32());
         Assert.True(payload.RootElement.TryGetProperty("traceId", out _));
+        Assert.Equal(correlationId, payload.RootElement.GetProperty("correlationId").GetString());
     }
 
     private async Task<PersonResponse> CreatePersonAsync(string name, string? email, bool isCurrentUser)

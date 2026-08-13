@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_VERSION: 10.0.301
+
+jobs:
+  test-and-build:
+    name: Testes e imagem Docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validar contrato OpenAPI
+        uses: oasdiff/oasdiff-action/validate@v0.1.10
+        with:
+          spec: openapi/openapi-v1.json
+          fail-on: ERR
+
+      - name: Buscar contrato da branch base
+        if: github.event_name == 'pull_request'
+        run: git fetch --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Verificar contrato da branch base
+        if: github.event_name == 'pull_request'
+        id: base-contract
+        shell: bash
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:openapi/openapi-v1.json"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A branch base ainda não possui contrato OpenAPI; comparação inaugural ignorada."
+          fi
+
+      - name: Bloquear breaking changes no OpenAPI
+        if: github.event_name == 'pull_request' && steps.base-contract.outputs.exists == 'true'
+        uses: oasdiff/oasdiff-action/breaking@v0.1.10
+        with:
+          base: origin/${{ github.base_ref }}:openapi/openapi-v1.json
+          revision: HEAD:openapi/openapi-v1.json
+          fail-on: ERR
+
+      - name: Configurar .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restaurar dependências bloqueadas
+        working-directory: FinanceControl.DebtService
+        run: dotnet restore FinanceControl.DebtService.sln --locked-mode
+
+      - name: Executar testes
+        working-directory: FinanceControl.DebtService
+        run: dotnet test FinanceControl.DebtService.sln --configuration Release --no-restore
+
+      - name: Compilar imagem Docker
+        run: docker build --tag finance-control-debt-service:ci .

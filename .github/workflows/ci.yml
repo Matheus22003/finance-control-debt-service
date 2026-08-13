@@ -39,8 +39,20 @@ jobs:
         if: github.event_name == 'pull_request'
         run: git fetch --depth=1 origin "${{ github.base_ref }}"
 
-      - name: Bloquear breaking changes no OpenAPI
+      - name: Verificar contrato da branch base
         if: github.event_name == 'pull_request'
+        id: base-contract
+        shell: bash
+        run: |
+          if git cat-file -e "origin/${{ github.base_ref }}:openapi/openapi-v1.json"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A branch base ainda não possui contrato OpenAPI; comparação inaugural ignorada."
+          fi
+
+      - name: Bloquear breaking changes no OpenAPI
+        if: github.event_name == 'pull_request' && steps.base-contract.outputs.exists == 'true'
         uses: oasdiff/oasdiff-action/breaking@v0.1.10
         with:
           base: origin/${{ github.base_ref }}:openapi/openapi-v1.json

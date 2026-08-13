@@ -25,4 +25,10 @@
     <ProjectReference Include="../../src/FinanceControl.DebtService/FinanceControl.DebtService.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="../../../openapi/openapi-v1.json"
+          Link="Contracts/openapi-v1.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

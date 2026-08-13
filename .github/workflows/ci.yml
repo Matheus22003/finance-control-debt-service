@@ -29,6 +29,24 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Validar contrato OpenAPI
+        uses: oasdiff/oasdiff-action/validate@v0.1.10
+        with:
+          spec: openapi/openapi-v1.json
+          fail-on: ERR
+
+      - name: Buscar contrato da branch base
+        if: github.event_name == 'pull_request'
+        run: git fetch --depth=1 origin "${{ github.base_ref }}"
+
+      - name: Bloquear breaking changes no OpenAPI
+        if: github.event_name == 'pull_request'
+        uses: oasdiff/oasdiff-action/breaking@v0.1.10
+        with:
+          base: origin/${{ github.base_ref }}:openapi/openapi-v1.json
+          revision: HEAD:openapi/openapi-v1.json
+          fail-on: ERR
+
       - name: Configurar .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:

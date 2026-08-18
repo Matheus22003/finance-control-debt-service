@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- publicação versionada de imagem Docker multiarch no GHCR, com SBOM e proveniência.
+
 ## [0.1.0] - 2026-08-13
 
 ### Added

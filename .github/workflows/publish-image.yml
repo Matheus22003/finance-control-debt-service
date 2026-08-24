@@ -2,6 +2,8 @@ name: Publicar imagem multiarch
 
 on:
   push:
+    branches:
+      - develop
     tags:
       - "v*"
   workflow_dispatch:
@@ -33,10 +35,17 @@ jobs:
           repository="${GITHUB_REPOSITORY,,}"
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             version="${GITHUB_REF_NAME#v}"
+            references="ghcr.io/${repository}:${version}"
+          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "develop" ]]; then
+            references="ghcr.io/${repository}:develop"$'\\n'"ghcr.io/${repository}:sha-${GITHUB_SHA::12}"
           else
-            version="manual-${GITHUB_SHA::12}"
+            references="ghcr.io/${repository}:manual-${GITHUB_SHA::12}"
           fi
-          echo "reference=ghcr.io/${repository}:${version}" >> "$GITHUB_OUTPUT"
+          {
+            echo "references<<EOF"
+            echo "$references"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Configurar QEMU
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
@@ -58,6 +67,6 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.image.outputs.reference }}
+          tags: ${{ steps.image.outputs.references }}
           provenance: mode=max
           sbom: true

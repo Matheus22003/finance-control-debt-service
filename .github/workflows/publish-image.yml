@@ -33,17 +33,16 @@ jobs:
         shell: bash
         run: |
           repository="${GITHUB_REPOSITORY,,}"
-          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            version="${GITHUB_REF_NAME#v}"
-            references="ghcr.io/${repository}:${version}"
-          elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "develop" ]]; then
-            references="ghcr.io/${repository}:develop"$'\\n'"ghcr.io/${repository}:sha-${GITHUB_SHA::12}"
-          else
-            references="ghcr.io/${repository}:manual-${GITHUB_SHA::12}"
-          fi
           {
             echo "references<<EOF"
-            echo "$references"
+            if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+              echo "ghcr.io/${repository}:${GITHUB_REF_NAME#v}"
+            elif [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "develop" ]]; then
+              echo "ghcr.io/${repository}:develop"
+              echo "ghcr.io/${repository}:sha-${GITHUB_SHA::12}"
+            else
+              echo "ghcr.io/${repository}:manual-${GITHUB_SHA::12}"
+            fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 

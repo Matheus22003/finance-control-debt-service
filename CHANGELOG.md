@@ -4,6 +4,12 @@
 
 ### Added
 
+- publicação versionada de imagem Docker multiarch no GHCR, com SBOM e proveniência.
+
+## [0.1.0] - 2026-08-13
+
+### Added
+
 - pessoas locais e snapshots de usuários do BFF;
 - convites de amizade, conexões autorizadas e grupos;
 - dívidas compartilhadas com pagador e participantes independentes;
@@ -15,4 +21,5 @@
 - ProblemDetails e logs com correlação distribuída;
 - OpenAPI, Scalar, Swagger UI e proteção de contrato no CI.
 
-[Unreleased]: https://github.com/Matheus22003/finance-control-debt-service/compare/main...develop
+[Unreleased]: https://github.com/Matheus22003/finance-control-debt-service/compare/v0.1.0...develop
+[0.1.0]: https://github.com/Matheus22003/finance-control-debt-service/releases/tag/v0.1.0

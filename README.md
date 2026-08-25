@@ -147,6 +147,10 @@ O workflow `.github/workflows/ci.yml` é executado em pushes e pull requests par
 dependências pelo lock file, executa os testes em `Release` e valida a imagem
 Docker do Debt Service.
 
+O workflow `.github/workflows/publish-image.yml` publica no GHCR uma imagem
+multiarch `linux/amd64` e `linux/arm64` quando uma tag `v*` é criada ou por
+execução manual. A publicação inclui SBOM e proveniência do build.
+
 ## Pacotes com versão direta
 
 Aplicação:

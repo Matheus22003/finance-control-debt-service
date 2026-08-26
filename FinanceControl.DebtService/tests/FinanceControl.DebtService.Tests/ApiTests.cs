@@ -486,6 +486,42 @@ public sealed class ApiTests(DebtServiceApplicationFactory factory) : IClassFixt
     }
 
     [Fact]
+    public async Task ReportOverview_CalculatesHistoricalPositionAndCategories()
+    {
+        await factory.ResetDatabaseAsync();
+        var me = await CreatePersonAsync("Me", "me@example.com", true);
+        var ana = await CreatePersonAsync("Ana", "ana@example.com", false);
+
+        await CreateDebtAsync(
+            "Dinner paid by me",
+            200m,
+            me.Id,
+            "FOOD",
+            [(me.Id, 100m), (ana.Id, 100m)]);
+        await CreateDebtAsync(
+            "Taxi paid by Ana",
+            80m,
+            ana.Id,
+            "TRANSPORT",
+            [(me.Id, 80m)]);
+
+        var report = await ReadAsync<DebtReportResponse>(
+            await _client.GetAsync(
+                "/api/v1/debts/reports/overview?from=2026-01-01&to=2026-12-31"));
+
+        Assert.Equal(280m, report.TotalVolume);
+        Assert.Equal(80m, report.TotalOwed);
+        Assert.Equal(100m, report.TotalToReceive);
+        Assert.Equal(2, report.OpenDebtsCount);
+        Assert.Equal(2, report.Months.Single().DebtCount);
+        Assert.Contains(report.Categories, category =>
+            category.Category == "FOOD" && category.TotalToReceive == 100m);
+        Assert.Contains(report.Categories, category =>
+            category.Category == "TRANSPORT" && category.TotalOwed == 80m);
+        Assert.Equal("Dinner paid by me", report.TopDebts.First().Description);
+    }
+
+    [Fact]
     public async Task Simplification_FindsTheMinimumInsteadOfOnlyUsingAGreedyMatch()
     {
         await factory.ResetDatabaseAsync();
@@ -638,6 +674,7 @@ public sealed class ApiTests(DebtServiceApplicationFactory factory) : IClassFixt
         Assert.Contains("/api/v1/debts", document);
         Assert.Contains("/api/v1/debts/settlements/simplified", document);
         Assert.Contains("/api/v1/debts/analysis-context", document);
+        Assert.Contains("/api/v1/debts/reports/overview", document);
         Assert.Contains("/payments", document);
         Assert.Contains("/history", document);
     }

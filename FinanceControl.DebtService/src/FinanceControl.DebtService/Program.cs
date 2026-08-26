@@ -47,6 +47,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<PersonService>();
 builder.Services.AddScoped<DebtManagementService>();
 builder.Services.AddScoped<DebtSummaryService>();
+builder.Services.AddScoped<DebtReportService>();
 builder.Services.AddScoped<SettlementSimplificationService>();
 builder.Services.AddScoped<SettlementTransferService>();
 builder.Services.AddScoped<SocialConnectionService>();

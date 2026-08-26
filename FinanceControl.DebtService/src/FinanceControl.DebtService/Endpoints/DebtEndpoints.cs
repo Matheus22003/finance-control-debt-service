@@ -26,6 +26,17 @@ public static class DebtEndpoints
             .WithName("GetDebtAnalysisContext")
             .Produces<DebtAnalysisContextResponse>();
 
+        debts.MapGet("/reports/overview", async (
+                [FromHeader(Name = InternalRequestHeaders.UserId)] Guid userId,
+                [FromQuery] DateOnly from,
+                [FromQuery] DateOnly to,
+                DebtReportService service,
+                CancellationToken cancellationToken) =>
+                Results.Ok(await service.GetOverviewAsync(userId, from, to, cancellationToken)))
+            .WithName("GetDebtReportOverview")
+            .Produces<DebtReportResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest);
+
         debts.MapGet("/settlements/simplified", async (
                 [FromHeader(Name = InternalRequestHeaders.UserId)] Guid userId,
                 [FromQuery] Guid? groupId,

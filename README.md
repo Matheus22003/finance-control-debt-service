@@ -2,6 +2,25 @@
 
 Microserviço responsável por pessoas, despesas compartilhadas, divisões, pagamentos, histórico e simplificação de transferências.
 
+## Posição na arquitetura
+
+Este serviço é interno: o [`finance-control-bff`](https://github.com/Matheus22003/finance-control-bff)
+é o único componente público e responsável pela autenticação. O serviço mantém
+seu próprio banco e não acessa o banco do Finance Service.
+
+### Mapa do projeto
+
+| Repositório | Papel |
+|---|---|
+| [`finance-control-bff`](https://github.com/Matheus22003/finance-control-bff) | API pública e agregação |
+| [`finance-control-finance-service`](https://github.com/Matheus22003/finance-control-finance-service) | Domínio financeiro |
+| `finance-control-debt-service` | Pessoas, amizades, grupos, dívidas, pagamentos e liquidação |
+| [`finance-control-infra`](https://github.com/Matheus22003/finance-control-infra) | PostgreSQL, redes, Compose e deploy |
+| [`finance-control-docs`](https://github.com/Matheus22003/finance-control-docs) | Contratos, arquitetura e operação |
+
+Use o Compose de `finance-control-infra` para validar a integração com BFF e
+PostgreSQL; os endpoints internos de ciclo de vida nunca devem ser publicados.
+
 ## Stack
 
 - .NET `10`

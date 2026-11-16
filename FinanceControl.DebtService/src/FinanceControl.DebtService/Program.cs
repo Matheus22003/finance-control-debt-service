@@ -33,13 +33,14 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 var debtDatabaseConnectionString = builder.Configuration.GetConnectionString("DebtDatabase");
-if (!builder.Environment.IsEnvironment("Testing"))
+if (string.IsNullOrWhiteSpace(debtDatabaseConnectionString) &&
+    !builder.Environment.IsEnvironment("Testing"))
 {
-    if (string.IsNullOrWhiteSpace(debtDatabaseConnectionString))
-    {
-        throw new InvalidOperationException("ConnectionStrings:DebtDatabase must be configured.");
-    }
+    throw new InvalidOperationException("ConnectionStrings:DebtDatabase must be configured.");
+}
 
+if (!string.IsNullOrWhiteSpace(debtDatabaseConnectionString))
+{
     builder.Services.AddDbContext<DebtDbContext>(options =>
         options.UseNpgsql(debtDatabaseConnectionString));
 }
@@ -80,7 +81,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 
 var app = builder.Build();
 
-if (!app.Environment.IsEnvironment("Testing"))
+if (!builder.Configuration.GetValue<bool>("Testing:SkipDatabaseInitialization"))
 {
     await using var scope = app.Services.CreateAsyncScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<DebtDbContext>();

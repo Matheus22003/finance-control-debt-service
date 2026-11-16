@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Configuration;
 
 namespace FinanceControl.DebtService.Tests;
 
@@ -14,9 +15,18 @@ public sealed class DebtServiceApplicationFactory : WebApplicationFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.ConfigureAppConfiguration((_, configuration) =>
+        {
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Testing:SkipDatabaseInitialization"] = "true",
+                ["ConnectionStrings:DebtDatabase"] = "Host=localhost;Database=debt_tests;Username=test;Password=test"
+            });
+        });
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<DbContextOptions<DebtDbContext>>();
+            services.RemoveAll<Microsoft.EntityFrameworkCore.Infrastructure.IDbContextOptionsConfiguration<DebtDbContext>>();
             services.RemoveAll<DebtDbContext>();
             services.AddDbContext<DebtDbContext>(options =>
                 options.UseInMemoryDatabase(_databaseName));
